@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(USER)
+  bookings  Booking[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model City {
+  id        String    @id @default(uuid())
+  name      String
+  state     String
+  theaters  Theater[]
+}
+
+model Theater {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  cityId    String
+  city      City     @relation(fields: [cityId], references: [id])
+  screens   Screen[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Screen {
+  id        String   @id @default(uuid())
+  name      String
+  capacity  Int
+  theaterId String
+  theater   Theater  @relation(fields: [theaterId], references: [id])
+  shows     Show[]
+  seats     Seat[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Movie {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  duration    Int      // in minutes
+  language    String
+  genre       String
+  posterUrl   String
+  trailerUrl  String
+  releaseDate DateTime
+  shows       Show[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Show {
+  id        String   @id @default(uuid())
+  movieId   String
+  movie     Movie    @relation(fields: [movieId], references: [id])
+  screenId  String
+  screen    Screen   @relation(fields: [screenId], references: [id])
+  startTime DateTime
+  endTime   DateTime
+  price     Float
+  bookings  Booking[]
+  seatLocks SeatLock[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Seat {
+  id        String   @id @default(uuid())
+  screenId  String
+  screen    Screen   @relation(fields: [screenId], references: [id])
+  row       String
+  number    Int
+  category  SeatCategory
+  priceMultiplier Float @default(1.0)
+  locks     SeatLock[]
+  bookings  BookingSeat[]
+}
+
+enum SeatCategory {
+  STANDARD
+  PREMIUM
+  VIP
+}
+
+model SeatLock {
+  id        String   @id @default(uuid())
+  seatId    String
+  seat      Seat     @relation(fields: [seatId], references: [id])
+  showId    String
+  show      Show     @relation(fields: [showId], references: [id])
+  userId    String   // session ID or user ID
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([seatId, showId])
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  showId    String
+  show      Show     @relation(fields: [showId], references: [id])
+  seats     BookingSeat[]
+  fnbOrders FnBOrder[]
+  totalAmount Float
+  status    BookingStatus @default(PENDING)
+  paymentId String?
+  qrCode    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookingSeat {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  seatId    String
+  seat      Seat     @relation(fields: [seatId], references: [id])
+
+  @@unique([bookingId, seatId])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model FnBItem {
+  id          String   @id @default(uuid())
+  name        String
+  price       Float
+  type        String   // e.g. SNACK, BEVERAGE
+  imageUrl    String?
+  orders      FnBOrder[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FnBOrder {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      FnBItem  @relation(fields: [itemId], references: [id])
+  quantity  Int      @default(1)
+  subtotal  Float
+}
